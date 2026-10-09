@@ -1,0 +1,112 @@
+library(dplyr)
+library(tidyr)
+library(survival)
+library(readr)
+library(tidyverse)
+
+df <- read_csv("~/my-r-project/my_final_dataset.csv")
+
+# Descriptive statistics
+
+summary(
+  df |> 
+    select(
+      event, event2, sanction, polity2,
+      Llog_gdppc, Llog_pop, Llog_imports_gdp_pc, Llog_oil_gas, cold_war,
+      relfrac, gmlmidongoing, demobin, sanction_trade,
+      sanction_fin, gwf_military, gwf_party, gwf_personal
+    )
+)
+
+# Correlation between trade and financial sanctions
+df |>
+  select(
+    sanction_trade, sanction_fin
+  ) |>
+  cor(use = "complete.obs") |>
+  round(2)
+
+# For H1
+m1 <- coxph(
+  Surv(tstart, tstop, event) ~ sanction
+    + polity2
+    + tt(polity2)
+    + Llog_gdppc 
+    + Llog_pop 
+    + Llog_imports_gdp_pc
+    + Llog_oil_gas 
+    + cold_war 
+    + relfrac 
+    + gmlmidongoing
+    + cluster(ccode),
+  data = df |> filter(demobin == 0),
+  tt = function(x, t, ...) x * log(t + 1)
+)
+summary(m1)
+car::vif(m1)
+logLik(m1)
+
+
+# For H2
+m2 <- coxph(
+  Surv(tstart, tstop, event) ~ sanction_fin 
+    + sanction_trade
+    + polity2 
+    + tt(polity2)
+    + Llog_gdppc 
+    + Llog_pop 
+    + Llog_imports_gdp_pc
+    + Llog_oil_gas 
+    + cold_war 
+    + relfrac 
+    + gmlmidongoing
+    + cluster(ccode),
+  data = df |> filter(demobin == 0),
+  tt = function(x, t, ...) x * log(t + 1)
+)
+summary(m2)
+logLik(m2)
+car::vif(m2)
+
+# Wald test
+car::linearHypothesis(
+  m2,
+  "sanction_fin = sanction_trade"
+)
+
+
+# For H3
+m3 <- coxph(
+  Surv(tstart, tstop, event) ~ sanction * anocracy
+    + Llog_gdppc 
+    + Llog_pop 
+    + Llog_imports_gdp_pc
+    + Llog_oil_gas 
+    + cold_war 
+    + gmlmidongoing 
+    + relfrac
+    + cluster(ccode),
+  data = df |> filter(demobin == 0)
+)
+summary(m3)
+car::vif(m3)
+logLik(m3)
+
+# For H4
+m4 <- coxph(
+  Surv(tstart, tstop, event) ~ sanction_fin * gwf_personal
+    + polity2 
+    + tt(polity2)
+    + Llog_gdppc 
+    + Llog_pop 
+    + Llog_imports_gdp_pc
+    + Llog_oil_gas 
+    + cold_war
+    + gmlmidongoing
+    + cluster(ccode),
+  data = df |> filter(demobin == 0),
+  tt = function(x, t, ...) x * log(t + 1)
+)
+summary(m4)
+car::vif(m4)
+logLik(m4)
